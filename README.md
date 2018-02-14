@@ -5,38 +5,63 @@ Paste the following in your Dev Tools Console:
 var breakBeforeAssignment = breakBeforeAssignment || (() => {
   const enabledByTarget = new WeakMap();
   const targetByProxy = new WeakMap();
+  const predicateByTarget = new WeakMap();
 
   const conditionEnabled = target => enabledByTarget.get(target) === true;
 
-  const setEnabled = (arg, value) => {
-    const target = enabledByTarget.has(arg) ? arg : targetByProxy.get(arg);
-    if (!target) {
-      throw new Error(`Could not find the target or proxy for ${arg}`);
+  const getTarget = targetOrProxy => {
+    const target = targetByProxy.get(targetOrProxy) || targetOrProxy
+    if (target) {
+      return target;
     }
 
+    throw new Error(`Could not find the target or proxy for ${arg}`);
+  }
+
+  const setEnabled = (arg, value) => {
+    const target = getTarget(arg);
     enabledByTarget.set(target, value);
   };
 
-  const withConditionalBreakpointBeforeAssignment = (target, property, value) => {
-    if (conditionEnabled(target)) {
+  const checkPredicate = (obj, prop, value) =>
+    predicateByTarget.has(obj) ? predicateByTarget.get(obj)(obj, prop, value) : true;
+
+  const setPredicate = (targetOrProxy, predicate) => {
+    const target = getTarget(targetOrProxy);
+    predicateByTarget.set(target, predicate);
+  };
+
+  const deletePredicate = targetOrProxy => {
+    const target = getTarget(targetByProxy);
+    predicateByTarget.delete(target);
+  };
+
+  const withConditionalBreakpointBeforeAssignment = (obj, prop, value) => {
+    if (conditionEnabled(obj) && checkPredicate(obj, prop, value)) {
       debugger;
     }
-    target[property] = value;
+    obj[prop] = value;
     return true;
   };
 
-  const createProxy = (enabled, target) => {
+  const createProxy = (target, enabled, predicate) => {
     enabledByTarget.set(target, enabled);
+    predicateByTarget.set(target, predicate);
     const proxy = new Proxy(target, { set: withConditionalBreakpointBeforeAssignment });
     targetByProxy.set(proxy, target);
     return proxy;
   };
 
   return {
-    enable: arg => setEnabled(arg, true),
-    disable: arg => setEnabled(arg, false),
-    on: target => createProxy(true, target),
-    whenEnabled: target => createProxy(false, target),
+    disable: targetOrProxy => setEnabled(targetOrProxy, false),
+    enable: targetOrProxy => setEnabled(targetOrProxy, true),
+    on: target => createProxy(target, true),
+    predicates: {
+      set: setPredicate,
+      delete: deletePredicate,
+    },
+    whenEnabled: target => createProxy(target, false),
+    withPredicate: (target, predicate) => createProxy(target, true, predicate),
   };
 })();
 ```
@@ -84,6 +109,23 @@ target.prop = 'new value';
 breakBeforeAssignment.disable(orig);
 target.prop = 'value';
 // ^ Doesn't interfere with your workflow
+```
+
+
+## Advanced filtering
+
+For situations where you'd like even more control over when the debugger is invoked you can provide your own function. When the breakpoint is enabled the predicate is called with the same arguments as the `set` trap we're hooked into: `(target: Object, name: String | Symbol, value: any) => any`.
+
+```js
+let target = {};
+const nestedKeyIsBlank = (target, prop, value) => value && value.nested && value.nested.key === '';
+target = breakBeforeAssignment.withPredicate(target, nestedKeyIsBlank);
+
+// Change the predicate as you work
+breakBeforeAssignment.predicates.set(target, (target, prop, value) => value > 10);
+
+// Or remove it to use enabled/disabled only
+breakBeforeAssignment.predicates.delete(target);
 ```
 
 
