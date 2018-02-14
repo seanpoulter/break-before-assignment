@@ -1,8 +1,6 @@
 # Adding a Breakpoint On Assignment
 
-## Usage
-
-Paste this into your Dev Tools Console:
+Paste the following in your Dev Tools Console:
 ```js
 var breakBeforeAssignment = breakBeforeAssignment || (() => {
   const enabledByTarget = new WeakMap();
@@ -44,7 +42,8 @@ var breakBeforeAssignment = breakBeforeAssignment || (() => {
 ```
 
 
-**Break when the value changes**:
+## Break when the value changes
+
 ```js
 let target = [];
 target = breakBeforeAssignment.on(target);
@@ -53,7 +52,8 @@ target.push(1);
 ```
 
 
-**Enable and disable the breakpoint using the Proxy**:
+## Enable and disable the breakpoint using the Proxy
+
 ```js
 let target = {};
 target = breakBeforeAssignment.whenEnabled(target);
@@ -69,7 +69,8 @@ target.prop = 'value';
 ```
 
 
-**Enable and disable the breakpoint using the original Object**:
+## Enable and disable the breakpoint using the original Object
+
 ```js
 let target = {};
 const orig = target;
