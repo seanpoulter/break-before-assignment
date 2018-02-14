@@ -1,4 +1,4 @@
-# Adding a Breakpoint On Assignment
+# Start the debugger when a value[<sup>*</sup>](#issues) changes
 
 Paste the following in your Dev Tools Console:
 ```js
@@ -85,3 +85,9 @@ breakBeforeAssignment.disable(orig);
 target.prop = 'value';
 // ^ Doesn't interfere with your workflow
 ```
+
+
+## Issues
+
+* This only works for objects. Primitive types will give you trouble.
+* Good luck if you have to reassign a `const`
